@@ -30,11 +30,21 @@ ASSET_MANAGER.downloadAll(() => {
   canvas.focus();
 
   // ---- helper: build gameplay when Start is clicked ----
-  function startGame() {
-    // Add background first, then cat/hud so they appear on top
-    
+  function clearAllEntities(game) {
+    for (const e of game.entities) e.removeFromWorld = true;
+  }
 
-    const cat = new Cat(gameEngine, 200, 675, {
+  function buildGameplay() {
+    clearAllEntities(gameEngine);
+
+    // IMPORTANT: background first (drawn last), then cat, then HUD
+    const bg = new Background(gameEngine, ASSET_MANAGER.getAsset("./cat/background.png"));
+    gameEngine.addEntity(bg);
+
+    const canvas = gameEngine.ctx.canvas;
+    const groundY = Math.round(canvas.height - 32 * 4 - 40);
+
+    const cat = new Cat(gameEngine, 200, groundY, {
       run: ASSET_MANAGER.getAsset("./cat/RunCatttt.png"),
       jump: ASSET_MANAGER.getAsset("./cat/JumpCattttt.png"),
       attack: ASSET_MANAGER.getAsset("./cat/AttackCattt.png"),
@@ -45,15 +55,43 @@ ASSET_MANAGER.downloadAll(() => {
 
     const hud = new HUD(gameEngine);
     gameEngine.addEntity(hud);
-
-    const bg = new Background(gameEngine, ASSET_MANAGER.getAsset("./cat/background.png"));
-    gameEngine.addEntity(bg);
   }
+
+  function startIntroFlow() {
+    clearAllEntities(gameEngine);
+
+    const bg = ASSET_MANAGER.getAsset("./cat/background.png");
+
+    // Intro scene → prompt name → Character select
+    const intro = new IntroScene(
+      gameEngine,
+      bg,
+      { runSheet: ASSET_MANAGER.getAsset("./cat/RunCatttt.png") },
+      () => {
+
+        // after IntroScene marks itself removeFromWorld, we add selection
+        gameEngine.addEntity(new CharacterSelectScene(
+          gameEngine,
+          bg,
+          (selected) => {
+            // store selection + start gameplay
+            gameEngine.selectedCatKey = selected.key;
+            gameEngine.playerName = selected.label;
+            
+            buildGameplay();
+          }
+        ));
+      }
+    );
+
+    gameEngine.addEntity(intro);
+  }
+
 
   // ---- Start Screen first ----
   const startImg = ASSET_MANAGER.getAsset("./cat/start.png");
   const playBtn = ASSET_MANAGER.getAsset("./cat/playbutton.png");
-  gameEngine.addEntity(new StartScreen(gameEngine, startImg, playBtn, startGame));
+  gameEngine.addEntity(new StartScreen(gameEngine, startImg, playBtn, startIntroFlow));
 
 
   // start the loop (it will show StartScreen)
