@@ -63,41 +63,60 @@ class Cat {
 update() {
   const dt = this.game.clockTick;
 
-  const left = !!this.game.keys["ArrowLeft"];
-  const right = !!this.game.keys["ArrowRight"];
-  const jump = !!this.game.keys["ArrowUp"]; // Space
-  const attack = !!(this.game.keys["a"] || this.game.keys["A"]);
+  // Omni movement: Arrow keys + WASD
+  const left  = !!(this.game.keys["ArrowLeft"]  || this.game.keys["a"] || this.game.keys["A"]);
+  const right = !!(this.game.keys["ArrowRight"] || this.game.keys["d"] || this.game.keys["D"]);
+  const up    = !!(this.game.keys["ArrowUp"]    || this.game.keys["w"] || this.game.keys["W"]);
+  const down  = !!(this.game.keys["ArrowDown"]  || this.game.keys["s"] || this.game.keys["S"]);
 
-  // ---- horizontal movement always allowed ----
-  if (left && !right) {
-    this.facingLeft = true;
-    this.x -= this.speed * dt;
-  } else if (right && !left) {
-    this.facingLeft = false;
-    this.x += this.speed * dt;
+  let dx = 0;
+  let dy = 0;
+
+  if (left && !right) dx = -1;
+  else if (right && !left) dx = 1;
+
+  if (up && !down) dy = -1;
+  else if (down && !up) dy = 1;
+
+  // Normalize diagonal so it's not faster
+  if (dx !== 0 && dy !== 0) {
+    const inv = 1 / Math.sqrt(2);
+    dx *= inv;
+    dy *= inv;
   }
 
-  // ---- choose animation state (while held) ----
-  // Priority: jump > attack > run(if moving) > sit
-  if (jump) {
-    this.setState("jump");
-  } else if (attack) {
-    this.setState("attack");
-  } else if (left || right) {
-    this.setState("run");
-  } else {
-    this.setState("sit");
-  }
+  this.x += dx * this.speed * dt;
+  this.y += dy * this.speed * dt;
 
-  // ---- keep cat on screen ----
+  // Facing direction for sprite flip
+  if (dx < 0) this.facingLeft = true;
+  else if (dx > 0) this.facingLeft = false;
+
+  // Animation: run when moving, sit when idle
+  if (dx !== 0 || dy !== 0) this.setState("run");
+  else this.setState("sit");
+
+  // Keep on screen bounds
   const canvas = this.game.ctx.canvas;
-    const drawW = this.FRAME_W * this.SCALE;
-    this.x = Math.max(0, Math.min(this.x, canvas.width - drawW));
-    }
+  const drawW = this.FRAME_W * this.SCALE;
+  const drawH = this.FRAME_H * this.SCALE;
 
+  this.x = Math.max(0, Math.min(this.x, canvas.width - drawW));
+  this.y = Math.max(0, Math.min(this.y, canvas.height - drawH));
+}
 
-  draw(ctx) {
-    const anim = this.anim[this.state] || this.anim.sit;
-    anim.drawFrame(this.game.clockTick, ctx, this.x, this.y, this.facingLeft);
+draw(ctx) {
+  const anim = this.anim[this.state];
+  if (!anim) return;
+
+  if (this.facingLeft) {
+    ctx.save();
+    ctx.translate(this.x + this.FRAME_W * this.SCALE, this.y);
+    ctx.scale(-1, 1);
+    anim.drawFrame(this.game.clockTick, ctx, 0, 0);
+    ctx.restore();
+  } else {
+    anim.drawFrame(this.game.clockTick, ctx, this.x, this.y);
   }
+}
 }

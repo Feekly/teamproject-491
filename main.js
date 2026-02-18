@@ -6,6 +6,9 @@ ASSET_MANAGER.queueDownload("./cat/start.png");
 ASSET_MANAGER.queueDownload("./cat/playbutton.png");
 
 ASSET_MANAGER.queueDownload("./cat/background.png");
+
+ASSET_MANAGER.queueDownload("./cafe/cafe-interior.png");
+
 ASSET_MANAGER.queueDownload("./cat/RunCatttt.png");
 ASSET_MANAGER.queueDownload("./cat/JumpCattttt.png");
 ASSET_MANAGER.queueDownload("./cat/AttackCattt.png");
@@ -29,6 +32,9 @@ ASSET_MANAGER.downloadAll(() => {
   gameEngine.init(ctx);
   canvas.focus();
 
+  canvas.addEventListener("click", () => canvas.focus());
+  window.addEventListener("keydown", () => canvas.focus());
+
   // ---- helper: build gameplay when Start is clicked ----
   function clearAllEntities(game) {
     for (const e of game.entities) e.removeFromWorld = true;
@@ -36,10 +42,6 @@ ASSET_MANAGER.downloadAll(() => {
 
   function buildGameplay() {
     clearAllEntities(gameEngine);
-
-    // IMPORTANT: background first (drawn last), then cat, then HUD
-    const bg = new Background(gameEngine, ASSET_MANAGER.getAsset("./cat/background.png"));
-    gameEngine.addEntity(bg);
 
     const canvas = gameEngine.ctx.canvas;
     const groundY = Math.round(canvas.height - 32 * 4 - 40);
@@ -53,34 +55,43 @@ ASSET_MANAGER.downloadAll(() => {
     });
     gameEngine.addEntity(cat);
 
+    gameEngine.cat = cat;
+
+    const difficulty = gameEngine.selectedDifficulty || "Easy"; // default if no selector yet
+    const cafe = new CafeManager(gameEngine, difficulty);
+    gameEngine.cafe = cafe;
+    gameEngine.addEntity(cafe);
+
     const hud = new HUD(gameEngine);
     gameEngine.addEntity(hud);
+
+      const levelMap = new Background(
+      gameEngine,
+      ASSET_MANAGER.getAsset("./cafe/cafe-interior.png")
+    );
+    gameEngine.addEntity(levelMap);
   }
 
   function startIntroFlow() {
     clearAllEntities(gameEngine);
 
-    const bg = ASSET_MANAGER.getAsset("./cat/background.png");
+    // intro/character-select can keep using the original outside background
+    const introBg = ASSET_MANAGER.getAsset("./cat/background.png");
 
-    // Intro scene → prompt name → Character select
     const intro = new IntroScene(
       gameEngine,
-      bg,
+      introBg,
       { runSheet: ASSET_MANAGER.getAsset("./cat/RunCatttt.png") },
       () => {
-
-        // after IntroScene marks itself removeFromWorld, we add selection
-        gameEngine.addEntity(new CharacterSelectScene(
-          gameEngine,
-          bg,
-          (selected) => {
-            // store selection + start gameplay
+        gameEngine.addEntity(
+          new CharacterSelectScene(gameEngine, introBg, (selected) => {
             gameEngine.selectedCatKey = selected.key;
             gameEngine.playerName = selected.label;
-            
+
+            // ✅ Gameplay (level map) starts here
             buildGameplay();
-          }
-        ));
+          })
+        );
       }
     );
 
