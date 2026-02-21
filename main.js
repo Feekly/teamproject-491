@@ -65,7 +65,10 @@ ASSET_MANAGER.downloadAll(() => {
     const hud = new HUD(gameEngine);
     gameEngine.addEntity(hud);
 
-      const levelMap = new Background(
+    const taskWidget = new TaskWidget(gameEngine);
+    gameEngine.addEntity(taskWidget);
+
+    const levelMap = new Background(
       gameEngine,
       ASSET_MANAGER.getAsset("./cafe/cafe-interior.png")
     );
