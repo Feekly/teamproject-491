@@ -70,10 +70,10 @@ class CafeManager {
 
     // ---------------- World Positions ----------------
     this.stationPositions = {
-      coffee: { x: 760, y: 120 },
-      tea: { x: 870, y: 160 },
-      juice: { x: 980, y: 200 },
-      pancake: { x: 1090, y: 240 }
+      coffee: { x: 777, y: 285 },
+      tea: { x: 861, y: 344 },
+      juice: { x: 980, y: 369 },
+      pancake: { x: 1090, y: 404 }
     };
 
     this.counterPosition = {
@@ -82,8 +82,8 @@ class CafeManager {
     };
 
     this.trashPosition = {
-      xOffset: 464,
-      yOffset: 411
+      xOffset: 275,
+      yOffset: 509
     };
 
     // ---------------- Customers / Tables ----------------
