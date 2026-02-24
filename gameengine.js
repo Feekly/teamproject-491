@@ -74,6 +74,16 @@ class GameEngine {
 
         this.ctx.canvas.addEventListener("keydown", event => this.keys[event.key] = true);
         this.ctx.canvas.addEventListener("keyup", event => this.keys[event.key] = false);
+
+        // REMOVE AFTER DEBUGGING
+    this.mouse = { x: 0, y: 0 };
+
+    this.ctx.canvas.addEventListener("mousemove", (e) => {
+    const rect = this.ctx.canvas.getBoundingClientRect();
+    this.mouse.x = e.clientX - rect.left;
+    this.mouse.y = e.clientY - rect.top;
+    // ---------------------------------------------
+});
     };
 
     addEntity(entity) {

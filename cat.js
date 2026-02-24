@@ -5,10 +5,7 @@ class Cat {
    * @param {number} y
    * @param {{
    *   run: HTMLImageElement,
-   *   sit: HTMLImageElement,
-   *   jump: HTMLImageElement,
-   *   attack: HTMLImageElement,
-   *   die?: HTMLImageElement
+   *   sit: HTMLImageElement,   
    * }} sheets
    */
   constructor(game, x, y, sheets) {

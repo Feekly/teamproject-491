@@ -1,19 +1,56 @@
 const gameEngine = new GameEngine();
 const ASSET_MANAGER = new AssetManager();
 
+
+const CAT_SPRITES = {
+  // original “default” cat set in ./cat/vanessa
+  default: {
+    run: "./cat/vanessa/run.png",
+    sit: "./cat/vanessa/sit.png",
+  },
+
+  grey: {
+    run: "./cat/grey_cat/run.png",
+    sit: "./cat/grey_cat/sit.png",
+  },
+
+  lightbrown: {
+    run: "./cat/light_brown_cat/run.png",
+    sit: "./cat/light_brown_cat/sit.png",
+  },
+
+  tiger: {
+    run: "./cat/tiger_cat/run.png",
+    sit: "./cat/tiger_cat/sit.png",
+  },
+
+  tricolor: {
+    run: "./cat/tricolor_cat/run.png",
+    sit: "./cat/tricolor_cat/sit.png",
+  },
+
+  vanessa: {
+    run: "./cat/vanessa/run.png",
+    sit: "./cat/vanessa/sit.png",
+  },
+
+  demun: {
+    run: "./cat/demon_cat/run.png",
+    sit: "./cat/demon_cat/sit.png",
+  },
+}
+
 // queue images
+for (const k in CAT_SPRITES) {
+  const s = CAT_SPRITES[k];
+  ASSET_MANAGER.queueDownload(s.run);
+  ASSET_MANAGER.queueDownload(s.sit);
+}
+
 ASSET_MANAGER.queueDownload("./cat/start.png");
 ASSET_MANAGER.queueDownload("./cat/playbutton.png");
-
 ASSET_MANAGER.queueDownload("./cat/background.png");
-
 ASSET_MANAGER.queueDownload("./cafe/cafe-interior.png");
-
-ASSET_MANAGER.queueDownload("./cat/RunCatttt.png");
-ASSET_MANAGER.queueDownload("./cat/JumpCattttt.png");
-ASSET_MANAGER.queueDownload("./cat/AttackCattt.png");
-ASSET_MANAGER.queueDownload("./cat/Sittingggg.png");
-ASSET_MANAGER.queueDownload("./cat/DieCattt.png");
 
 ASSET_MANAGER.downloadAll(() => {
   const canvas = document.getElementById("gameWorld");
@@ -46,18 +83,17 @@ ASSET_MANAGER.downloadAll(() => {
     const canvas = gameEngine.ctx.canvas;
     const groundY = Math.round(canvas.height - 32 * 4 - 40);
 
+    const key = gameEngine.selectedCatKey || "vanessa"; // fallback
+    const spriteDef = CAT_SPRITES[key] || CAT_SPRITES.default;
+
     const cat = new Cat(gameEngine, 200, groundY, {
-      run: ASSET_MANAGER.getAsset("./cat/RunCatttt.png"),
-      jump: ASSET_MANAGER.getAsset("./cat/JumpCattttt.png"),
-      attack: ASSET_MANAGER.getAsset("./cat/AttackCattt.png"),
-      sit: ASSET_MANAGER.getAsset("./cat/Sittingggg.png"),
-      die: ASSET_MANAGER.getAsset("./cat/DieCattt.png"),
+      run: ASSET_MANAGER.getAsset(spriteDef.run),
+      sit: ASSET_MANAGER.getAsset(spriteDef.sit),
     });
     gameEngine.addEntity(cat);
-
     gameEngine.cat = cat;
 
-    const difficulty = gameEngine.selectedDifficulty || "Easy"; // default if no selector yet
+    const difficulty = gameEngine.selectedDifficulty || "Easy";
     const cafe = new CafeManager(gameEngine, difficulty);
     gameEngine.cafe = cafe;
     gameEngine.addEntity(cafe);
@@ -65,11 +101,12 @@ ASSET_MANAGER.downloadAll(() => {
     const hud = new HUD(gameEngine);
     gameEngine.addEntity(hud);
 
-      const levelMap = new Background(
+    const levelMap = new Background(
       gameEngine,
       ASSET_MANAGER.getAsset("./cafe/cafe-interior.png")
     );
     gameEngine.addEntity(levelMap);
+    
   }
 
   function startIntroFlow() {
@@ -81,14 +118,31 @@ ASSET_MANAGER.downloadAll(() => {
     const intro = new IntroScene(
       gameEngine,
       introBg,
-      { runSheet: ASSET_MANAGER.getAsset("./cat/RunCatttt.png") },
+      { runSheet: ASSET_MANAGER.getAsset("./cat/vanessa/run.png") },
       () => {
-        gameEngine.addEntity(
-          new CharacterSelectScene(gameEngine, introBg, (selected) => {
-            gameEngine.selectedCatKey = selected.key;
-            gameEngine.playerName = selected.label;
+        const catSpriteImages = {};
+        for (const k in CAT_SPRITES) {
+          const def = CAT_SPRITES[k];
+          catSpriteImages[k] = {
+            run: ASSET_MANAGER.getAsset(def.run),
+            sit: ASSET_MANAGER.getAsset(def.sit),
+          };
+        }
 
-            // ✅ Gameplay (level map) starts here
+        gameEngine.addEntity(
+          new CharacterSelectScene(gameEngine, introBg, catSpriteImages, (selectedKey) => {
+            gameEngine.selectedCatKey = selectedKey;
+
+            const labels = {
+              grey: "Bibo",
+              lightbrown: "Siam",
+              tiger: "Tygi",
+              tricolor: "Claire",
+              vanessa: "Mini",
+              demun: "Demun",
+            };
+            gameEngine.playerName = labels[selectedKey] || "Host";
+
             buildGameplay();
           })
         );
