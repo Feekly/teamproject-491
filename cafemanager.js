@@ -24,10 +24,25 @@ class CafeManager {
 
     // ---------------- Day State ----------------
     this.day = 1;
-    this.target = this.computeTarget(this.day);
+
+    // Fixed quota
+    this.target = 100;
+
     this.dayEarned = 0;
     this.totalMoney = 0;
     this.message = "Start cooking!";
+
+    // ---------------- Day Timer ----------------
+    // 7am to 5pm = 10 in-game hours
+    this.dayStartHour = 7;
+    this.dayEndHour = 17; // 5pm in 24h time
+    this.dayLengthHours = this.dayEndHour - this.dayStartHour; // 10
+
+    // Real-time seconds that represent the whole day (tweak this)
+    this.dayLengthSeconds = 180; // 3 minutes per day (change to 120, 300, etc.)
+
+    this.dayElapsed = 0;     // seconds elapsed in the day
+    this.gameOver = false;   // stops gameplay when true
 
     // ---------------- Player State ----------------
     this.carryingItem = null;
@@ -129,8 +144,9 @@ class CafeManager {
   }
 
   startDay() {
-    this.target = this.computeTarget(this.day);
+    this.dayElapsed = 0;
     this.dayEarned = 0;
+
     this.orders = [];
     this.spawnTimer = 0;
     this.carryingItem = null;
@@ -139,6 +155,53 @@ class CafeManager {
       this.stations[k].remaining = 0;
       this.stations[k].outputReady = false;
     }
+  }
+
+  // ---------------- Day Timer Helpers ----------------
+  getCurrentClockString() {
+    // progress 0..1 through the day
+    const t = Math.min(1, this.dayElapsed / this.dayLengthSeconds);
+
+    // 7 -> 17 (10 hours)
+    const hourFloat = this.dayStartHour + t * this.dayLengthHours;
+
+    let hour = Math.floor(hourFloat);
+    let minute = Math.floor((hourFloat - hour) * 60);
+
+    const ampm = hour >= 12 ? "PM" : "AM";
+    let displayHour = hour % 12;
+    if (displayHour === 0) displayHour = 12;
+
+    const mm = minute.toString().padStart(2, "0");
+    return `${displayHour}:${mm} ${ampm}`;
+  }
+
+  endDay() {
+    if (this.dayEarned < this.target) {
+      this.message = `GAME OVER: You earned $${this.dayEarned} / $${this.target}`;
+      this.gameOver = true;
+      return;
+    }
+
+    // Day passed -> go next day 
+    this.day++;
+
+    // reset day timer + day money
+    this.dayElapsed = 0;
+    this.dayEarned = 0;
+
+    // Optional: clear orders/customers between days
+    this.orders = [];
+    this.customers = [];
+    this.carryingItem = null;
+
+    // Optional: reset stations
+    for (const k in this.stations) {
+      this.stations[k].remaining = 0;
+      this.stations[k].outputReady = false;
+    }
+
+    this.message = "Day cleared! New day started.";
   }
 
 
@@ -450,10 +513,10 @@ class CafeManager {
       cy < tz.y + tz.h + pad
     );
 
-    // Not near any table? Don't consume E — let entrance/stations handle it.
+    // Not near any table? Don't consume E let entrance/stations handle it
     if (!near) return false;
 
-    // Now we ARE near a table, so handle delivery messaging.
+    // Now we ARE near a table, so handle delivery messaging
     if (!this.carryingItem) {
       this.message = "You're not carrying anything.";
       return true;
@@ -489,6 +552,17 @@ class CafeManager {
     this.refreshZones();
     const dt = this.game.clockTick;
     const cat = this.game.cat;
+
+    if (this.gameOver) return;
+
+
+    this.dayElapsed += dt;
+
+    if (this.dayElapsed >= this.dayLengthSeconds) {
+      this.dayElapsed = this.dayLengthSeconds;
+      this.endDay();
+      return;
+    }
 
     this.updateStations(dt);
 
@@ -598,6 +672,8 @@ class CafeManager {
     ctx.fillText("TRASH", tz.x + 18, tz.y + 28);
 
     // Debug UI
+    ctx.fillText(`TIME: ${this.getCurrentClockString()} (7AM - 5PM)`, 20, 65);
+    ctx.fillText(`QUOTA: $${this.dayEarned} / $${this.target}`, 20, 80);
     ctx.fillText("CARRY: " + (this.carryingItem || "(none)"), 20, 90);
     ctx.fillText("SCORE: $" + this.totalMoney, 20, 115);
     ctx.fillText("DAY " + this.day + "  $" + this.dayEarned + " / $" + this.target, 20, 140);
@@ -618,6 +694,22 @@ class CafeManager {
 
     // DEBUG DELAY
     ctx.fillText(`SPAWN IN: ${Math.max(0, this.nextSpawnDelay - this.custSpawnTimer).toFixed(1)}s`, 20, 215);
+
+    // GAME OVER overlay
+    if (this.gameOver) {
+      ctx.save();
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+      ctx.fillStyle = "white";
+      ctx.font = "48px monospace";
+      ctx.fillText("GAME OVER", 60, 120);
+
+      ctx.font = "24px monospace";
+      ctx.fillText(`You earned $${this.dayEarned} / $${this.target}`, 60, 170);
+      ctx.fillText("Refresh to restart.", 60, 210);
+      ctx.restore();
+    }
 
     ctx.restore();
   }
