@@ -4,8 +4,13 @@ class Background {
     this.image = image;
     this.removeFromWorld = false;
   }
+
   update() {}
+
   draw(ctx) {
+    if (!this.image) {
+      return;
+    }
     ctx.drawImage(this.image, 0, 0, ctx.canvas.width, ctx.canvas.height);
   }
 }

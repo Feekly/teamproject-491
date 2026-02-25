@@ -4,24 +4,50 @@ class CharacterSelectScene {
    * @param {GameEngine} game
    * @param {HTMLImageElement} bgImage
    * @param {(selectedKey: string) => void} onSelected
+   * @param {Object<string, {run?: HTMLImageElement, sit?: HTMLImageElement}>} sprites
+   * @param {(selectedKey: string) => void} onSelected
+
    */
-  constructor(game, bgImage, onSelected) {
+  constructor(game, bgImage, sprites, onSelected) {
     this.game = game;
     this.bg = bgImage;
+    this.sprites = sprites || {};
     this.onSelected = onSelected;
     this.removeFromWorld = false;
 
     // Your names 
     this.cats = [
-      { key: "bibo", label: "Bibo" },
-      { key: "siam", label: "Siam" },
-      { key: "tygi", label: "Tygi" },
-      { key: "claire", label: "Claire" },
-      { key: "mini", label: "Mini" },
+      { key: "grey", label: "Bibo" },
+      { key: "lightbrown", label: "Siam" },
+      { key: "tiger", label: "Tygi" },
+      { key: "tricolor", label: "Claire" },
+      { key: "vanessa", label: "Mini" },
       { key: "demun", label: "Demun" },
     ];
-  }
 
+    this.preview = {};
+    const FRAME_W = 32;
+    const FRAME_H = 32;
+
+    const PREVIEW_SCALE = 2;
+
+    for (const c of this.cats) {
+      const def = this.sprites[c.key];
+      const sitImg = def && def.sit;
+
+      if (sitImg) {
+        this.preview[c.key] = new Animator(
+          sitImg,
+          0, 0,
+          FRAME_W, FRAME_H,
+          3,          // sit frames
+          0.18,       // sit frame duration
+          true,       // loop
+          PREVIEW_SCALE
+        );
+      }
+    }
+  }
   getCanvas() {
     return this.game.ctx.canvas;
   }
@@ -73,14 +99,15 @@ class CharacterSelectScene {
       if (this.pointInRect(click.x, click.y, r)) {
         this.game.click = null;
 
-        const selected = r.cat;
-
-        if (typeof this.onSelected === "function") this.onSelected(selected);
+        if (typeof this.onSelected === "function") {
+          this.onSelected(r.cat.key);
+        }
 
         this.removeFromWorld = true;
         return;
       }
     }
+
 
     // click anywhere else just clears click
     this.game.click = null;
@@ -109,7 +136,7 @@ class CharacterSelectScene {
     ctx.fillText("Choose a cat to represent you as the café host.", p.x + 40, p.y + 120);
     ctx.fillText("Click a cat to choose your name and continue.", p.x + 40, p.y + 150);
 
-    // clickable cat “slots” (placeholders for now)
+    // clickable cat “slots” 
     const rects = this.getCatRects();
     ctx.font = "18px monospace";
 
@@ -118,6 +145,20 @@ class CharacterSelectScene {
       ctx.strokeStyle = "rgba(0,0,0,0.5)";
       ctx.lineWidth = 3;
       roundRect(ctx, r.x, r.y, r.w, r.h, 10, true, true);
+
+      const anim = this.preview[r.cat.key];
+      if (anim) {
+        // center the animation in the slot
+        const drawW = 32 * 2; // frameW * PREVIEW_SCALE
+        const drawH = 32 * 2;
+
+        const px = Math.round(r.x + (r.w - drawW) / 2);
+        const py = Math.round(r.y + (r.h - drawH) / 2);
+
+        anim.drawFrame(this.game.clockTick, ctx, px, py, false);
+      }
+
+
 
       // label under slot
       ctx.fillStyle = "rgba(60, 20, 80, 0.9)";
@@ -128,4 +169,6 @@ class CharacterSelectScene {
 
     drawHint(ctx, "Click a cat to select.");
   }
+
+
 }

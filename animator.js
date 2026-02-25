@@ -46,6 +46,9 @@ class Animator {
    */
   drawFrame(tick, ctx, x, y, flip = false) {
     this.elapsedTime += tick;
+    if (!this.spritesheet || !this.spritesheet.complete || this.spritesheet.naturalWidth === 0) {
+      return;
+    }
 
     if (this.loop) {
       this.elapsedTime = this.elapsedTime % this.totalTime;

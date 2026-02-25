@@ -1,16 +1,56 @@
 const gameEngine = new GameEngine();
 const ASSET_MANAGER = new AssetManager();
 
+
+const CAT_SPRITES = {
+  // original “default” cat set in ./cat/vanessa
+  default: {
+    run: "./cat/vanessa/run.png",
+    sit: "./cat/vanessa/sit.png",
+  },
+
+  grey: {
+    run: "./cat/grey_cat/run.png",
+    sit: "./cat/grey_cat/sit.png",
+  },
+
+  lightbrown: {
+    run: "./cat/light_brown_cat/run.png",
+    sit: "./cat/light_brown_cat/sit.png",
+  },
+
+  tiger: {
+    run: "./cat/tiger_cat/run.png",
+    sit: "./cat/tiger_cat/sit.png",
+  },
+
+  tricolor: {
+    run: "./cat/tricolor_cat/run.png",
+    sit: "./cat/tricolor_cat/sit.png",
+  },
+
+  vanessa: {
+    run: "./cat/vanessa/run.png",
+    sit: "./cat/vanessa/sit.png",
+  },
+
+  demun: {
+    run: "./cat/demon_cat/run.png",
+    sit: "./cat/demon_cat/sit.png",
+  },
+}
+
 // queue images
+for (const k in CAT_SPRITES) {
+  const s = CAT_SPRITES[k];
+  ASSET_MANAGER.queueDownload(s.run);
+  ASSET_MANAGER.queueDownload(s.sit);
+}
+
 ASSET_MANAGER.queueDownload("./cat/start.png");
 ASSET_MANAGER.queueDownload("./cat/playbutton.png");
-
 ASSET_MANAGER.queueDownload("./cat/background.png");
-ASSET_MANAGER.queueDownload("./cat/RunCatttt.png");
-ASSET_MANAGER.queueDownload("./cat/JumpCattttt.png");
-ASSET_MANAGER.queueDownload("./cat/AttackCattt.png");
-ASSET_MANAGER.queueDownload("./cat/Sittingggg.png");
-ASSET_MANAGER.queueDownload("./cat/DieCattt.png");
+ASSET_MANAGER.queueDownload("./cafe/cafe-interior.png");
 
 ASSET_MANAGER.downloadAll(() => {
   const canvas = document.getElementById("gameWorld");
@@ -29,6 +69,9 @@ ASSET_MANAGER.downloadAll(() => {
   gameEngine.init(ctx);
   canvas.focus();
 
+  canvas.addEventListener("click", () => canvas.focus());
+  window.addEventListener("keydown", () => canvas.focus());
+
   // ---- helper: build gameplay when Start is clicked ----
   function clearAllEntities(game) {
     for (const e of game.entities) e.removeFromWorld = true;
@@ -37,50 +80,72 @@ ASSET_MANAGER.downloadAll(() => {
   function buildGameplay() {
     clearAllEntities(gameEngine);
 
-    // IMPORTANT: background first (drawn last), then cat, then HUD
-    const bg = new Background(gameEngine, ASSET_MANAGER.getAsset("./cat/background.png"));
-    gameEngine.addEntity(bg);
-
     const canvas = gameEngine.ctx.canvas;
     const groundY = Math.round(canvas.height - 32 * 4 - 40);
 
+    const key = gameEngine.selectedCatKey || "vanessa"; // fallback
+    const spriteDef = CAT_SPRITES[key] || CAT_SPRITES.default;
+
     const cat = new Cat(gameEngine, 200, groundY, {
-      run: ASSET_MANAGER.getAsset("./cat/RunCatttt.png"),
-      jump: ASSET_MANAGER.getAsset("./cat/JumpCattttt.png"),
-      attack: ASSET_MANAGER.getAsset("./cat/AttackCattt.png"),
-      sit: ASSET_MANAGER.getAsset("./cat/Sittingggg.png"),
-      die: ASSET_MANAGER.getAsset("./cat/DieCattt.png"),
+      run: ASSET_MANAGER.getAsset(spriteDef.run),
+      sit: ASSET_MANAGER.getAsset(spriteDef.sit),
     });
     gameEngine.addEntity(cat);
+    gameEngine.cat = cat;
+
+    const difficulty = gameEngine.selectedDifficulty || "Easy";
+    const cafe = new CafeManager(gameEngine, difficulty);
+    gameEngine.cafe = cafe;
+    gameEngine.addEntity(cafe);
 
     const hud = new HUD(gameEngine);
     gameEngine.addEntity(hud);
+
+    const levelMap = new Background(
+      gameEngine,
+      ASSET_MANAGER.getAsset("./cafe/cafe-interior.png")
+    );
+    gameEngine.addEntity(levelMap);
+    
   }
 
   function startIntroFlow() {
     clearAllEntities(gameEngine);
 
-    const bg = ASSET_MANAGER.getAsset("./cat/background.png");
+    // intro/character-select can keep using the original outside background
+    const introBg = ASSET_MANAGER.getAsset("./cat/background.png");
 
-    // Intro scene → prompt name → Character select
     const intro = new IntroScene(
       gameEngine,
-      bg,
-      { runSheet: ASSET_MANAGER.getAsset("./cat/RunCatttt.png") },
+      introBg,
+      { runSheet: ASSET_MANAGER.getAsset("./cat/vanessa/run.png") },
       () => {
+        const catSpriteImages = {};
+        for (const k in CAT_SPRITES) {
+          const def = CAT_SPRITES[k];
+          catSpriteImages[k] = {
+            run: ASSET_MANAGER.getAsset(def.run),
+            sit: ASSET_MANAGER.getAsset(def.sit),
+          };
+        }
 
-        // after IntroScene marks itself removeFromWorld, we add selection
-        gameEngine.addEntity(new CharacterSelectScene(
-          gameEngine,
-          bg,
-          (selected) => {
-            // store selection + start gameplay
-            gameEngine.selectedCatKey = selected.key;
-            gameEngine.playerName = selected.label;
-            
+        gameEngine.addEntity(
+          new CharacterSelectScene(gameEngine, introBg, catSpriteImages, (selectedKey) => {
+            gameEngine.selectedCatKey = selectedKey;
+
+            const labels = {
+              grey: "Bibo",
+              lightbrown: "Siam",
+              tiger: "Tygi",
+              tricolor: "Claire",
+              vanessa: "Mini",
+              demun: "Demun",
+            };
+            gameEngine.playerName = labels[selectedKey] || "Host";
+
             buildGameplay();
-          }
-        ));
+          })
+        );
       }
     );
 

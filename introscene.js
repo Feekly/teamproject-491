@@ -43,6 +43,19 @@ class IntroScene {
   }
 
   update() {
+    //Skip Intro
+    if (this.game.keys[" "] || 
+    this.game.keys["Enter"] || 
+    this.game.keys["Escape"]) {
+
+      if (typeof this.onDoneName === "function") {
+        this.onDoneName(null);
+      }
+
+        this.removeFromWorld = true;
+        return;
+    }
+
     // keep host on correct ground if resized
     this.vanessa.y = this.getGroundY();
 
