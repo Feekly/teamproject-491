@@ -50,7 +50,7 @@ for (const k in CAT_SPRITES) {
 ASSET_MANAGER.queueDownload("./cat/start.png");
 ASSET_MANAGER.queueDownload("./cat/playbutton.png");
 ASSET_MANAGER.queueDownload("./cat/background.png");
-ASSET_MANAGER.queueDownload("./cafe/cafe-interior.png");
+ASSET_MANAGER.queueDownload("./cafe/workspace_cf.png");
 
 ASSET_MANAGER.downloadAll(() => {
   const canvas = document.getElementById("gameWorld");
@@ -103,7 +103,7 @@ ASSET_MANAGER.downloadAll(() => {
 
     const levelMap = new Background(
       gameEngine,
-      ASSET_MANAGER.getAsset("./cafe/cafe-interior.png")
+      ASSET_MANAGER.getAsset("./cafe/workspace_cf.png")
     );
     gameEngine.addEntity(levelMap);
     
