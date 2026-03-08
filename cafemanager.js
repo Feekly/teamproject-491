@@ -112,6 +112,16 @@ class CafeManager {
     // Optional: patience (seconds) before leaving
     this.patienceMin = 35;
     this.patienceMax = 125;
+
+        // ---------------- Tutorial ----------------
+    this.tutorialActive = (this.day === 1);
+    this.tutorialStep = 0;
+    this.tutorialCustomerId = null;
+    this.tutorialText = "";
+
+    if (this.tutorialActive) {
+      this.startTutorial();
+    }
   }
 
   // ---------------Day / Progress Logic--------------------
@@ -546,6 +556,181 @@ class CafeManager {
     return true;
   }
 
+    // ---------------- Tutorial ----------------
+  startTutorial() {
+    this.tutorialActive = true;
+    this.tutorialStep = 0;
+    this.tutorialCustomerId = null;
+
+    // Pause real day progression until tutorial is done
+    this.dayElapsed = 0;
+    this.dayEarned = 0;
+    this.totalMoney = 0;
+    this.carryingItem = null;
+
+    // Clear anything dynamic
+    this.customers = [];
+    this.custSpawnTimer = 0;
+    this.nextSpawnDelay = this.randomSpawnDelay();
+
+    for (const k in this.stations) {
+      this.stations[k].remaining = 0;
+      this.stations[k].outputReady = false;
+    }
+
+    // One scripted customer for coffee
+    const tutorialCustomer = {
+      id: this.custId++,
+      state: "waiting",
+      orderItem: "coffee",
+      tableId: null,
+      patience: 9999
+    };
+
+    this.customers.push(tutorialCustomer);
+    this.tutorialCustomerId = tutorialCustomer.id;
+
+    this.tutorialText = "Welcome! Move to the ENTRANCE to begin the tutorial.";
+    this.message = this.tutorialText;
+  }
+
+  endTutorial() {
+    this.tutorialActive = false;
+    this.tutorialStep = -1;
+    this.tutorialCustomerId = null;
+    this.tutorialText = "";
+
+    // Start actual Day 1 fresh
+    this.dayElapsed = 0;
+    this.dayEarned = 0;
+    this.totalMoney = 0;
+    this.carryingItem = null;
+
+    this.customers = [];
+    this.custSpawnTimer = 0;
+    this.nextSpawnDelay = this.randomSpawnDelay();
+
+    for (const k in this.stations) {
+      this.stations[k].remaining = 0;
+      this.stations[k].outputReady = false;
+    }
+
+    this.message = "Tutorial complete! Day 1 has started.";
+  }
+
+  getTutorialCustomer() {
+    return this.customers.find(c => c.id === this.tutorialCustomerId) || null;
+  }
+
+  updateTutorial(dt, cat) {
+    // stations still need to update during tutorial
+    this.updateStations(dt);
+
+    const pressedE = this.isPressedOnce("e") || this.isPressedOnce("E");
+    const tutorialCustomer = this.getTutorialCustomer();
+
+    switch (this.tutorialStep) {
+      case 0: {
+        this.tutorialText = "Step 1: Move to the ENTRANCE area.";
+        if (this.isNear(cat, "entrance")) {
+          this.tutorialStep = 1;
+          this.tutorialText = "Step 2: Press E at the ENTRANCE to seat the customer.";
+          this.message = this.tutorialText;
+        }
+        break;
+      }
+
+      case 1: {
+        this.tutorialText = "Step 2: Press E at the ENTRANCE to seat the customer.";
+        if (pressedE && this.isNear(cat, "entrance")) {
+          this.seatCustomerIfPossible(cat);
+
+          const seatedCustomer = this.getTutorialCustomer();
+          if (seatedCustomer && seatedCustomer.state === "seated") {
+            this.tutorialStep = 2;
+            this.tutorialText = "Step 3: Go to the COFFEE station.";
+            this.message = this.tutorialText;
+          }
+        }
+        break;
+      }
+
+      case 2: {
+        this.tutorialText = "Step 3: Go to the COFFEE station.";
+        if (this.isNear(cat, "coffee")) {
+          this.tutorialStep = 3;
+          this.tutorialText = "Step 4: Press E at the COFFEE station to start brewing.";
+          this.message = this.tutorialText;
+        }
+        break;
+      }
+
+      case 3: {
+        this.tutorialText = "Step 4: Press E at the COFFEE station to start brewing.";
+        if (pressedE && this.isNear(cat, "coffee")) {
+          const before = this.stations.coffee.remaining;
+          this.interactWithNearestStation(cat);
+
+          if (before === 0 && this.stations.coffee.remaining > 0) {
+            this.tutorialStep = 4;
+            this.tutorialText = "Step 5: Wait until the coffee is READY.";
+            this.message = this.tutorialText;
+          }
+        }
+        break;
+      }
+
+      case 4: {
+        this.tutorialText = "Step 5: Wait until the coffee is READY.";
+        if (this.stations.coffee.outputReady) {
+          this.tutorialStep = 5;
+          this.tutorialText = "Step 6: Press E at the COFFEE station to pick it up.";
+          this.message = this.tutorialText;
+        }
+        break;
+      }
+
+      case 5: {
+        this.tutorialText = "Step 6: Press E at the COFFEE station to pick it up.";
+        if (pressedE && this.isNear(cat, "coffee")) {
+          const before = this.carryingItem;
+          this.interactWithNearestStation(cat);
+
+          if (before !== "coffee" && this.carryingItem === "coffee") {
+            this.tutorialStep = 6;
+            this.tutorialText = "Step 7: Go to TABLE 1 and press E to deliver the coffee.";
+            this.message = this.tutorialText;
+          }
+        }
+        break;
+      }
+
+      case 6: {
+        this.tutorialText = "Step 7: Go to TABLE 1 and press E to deliver the coffee.";
+        if (pressedE) {
+          const earnedBefore = this.dayEarned;
+          this.deliverToNearestTable(cat);
+
+          if (this.dayEarned > earnedBefore) {
+            this.tutorialStep = 7;
+            this.tutorialText = "Tutorial complete! Press E to start the real Day 1.";
+            this.message = this.tutorialText;
+          }
+        }
+        break;
+      }
+
+      case 7: {
+        this.tutorialText = "Tutorial complete! Press E to start the real Day 1.";
+        if (pressedE || this.game.click) {
+          this.game.click = null;
+          this.endTutorial();
+        }
+        break;
+      }
+    }
+  }
+
   // -------------------Game Loop---------------------------
 
   update() {
@@ -555,6 +740,11 @@ class CafeManager {
 
     if (this.gameOver) return;
 
+    // Tutorial takes over Day 1 before normal gameplay starts
+    if (this.tutorialActive) {
+      this.updateTutorial(dt, cat);
+      return;
+    }
 
     this.dayElapsed += dt;
 
@@ -708,6 +898,47 @@ class CafeManager {
       ctx.font = "24px monospace";
       ctx.fillText(`You earned $${this.dayEarned} / $${this.target}`, 60, 170);
       ctx.fillText("Refresh to restart.", 60, 210);
+      ctx.restore();
+    }
+
+        // TUTORIAL overlay
+    if (this.tutorialActive) {
+      ctx.save();
+
+      // instruction box
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(20, ctx.canvas.height - 110, 760, 80);
+
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(20, ctx.canvas.height - 110, 760, 80);
+
+      ctx.fillStyle = "white";
+      ctx.font = "18px monospace";
+      ctx.fillText("DAY 1 TUTORIAL", 35, ctx.canvas.height - 82);
+
+      ctx.font = "16px monospace";
+      ctx.fillText(this.tutorialText, 35, ctx.canvas.height - 50);
+
+      ctx.restore();
+    }
+
+        if (this.tutorialActive) {
+      ctx.save();
+      ctx.strokeStyle = "yellow";
+      ctx.lineWidth = 4;
+
+      if (this.tutorialStep <= 1) {
+        const z = this.zones.entrance;
+        ctx.strokeRect(z.x, z.y, z.w, z.h);
+      } else if (this.tutorialStep >= 2 && this.tutorialStep <= 5) {
+        const z = this.zones.coffee;
+        ctx.strokeRect(z.x, z.y, z.w, z.h);
+      } else if (this.tutorialStep === 6) {
+        const t = this.tablePositions.find(tt => tt.id === 1);
+        if (t) ctx.strokeRect(t.x, t.y, t.w, t.h);
+      }
+
       ctx.restore();
     }
 
