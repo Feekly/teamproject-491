@@ -69,11 +69,12 @@ class CafeManager {
     this.orderId = 1;
 
     // ---------------- World Positions ----------------
+    // Station centers (used to position both interaction zones and info boxes)
     this.stationPositions = {
-      coffee: { x: 777, y: 285 },
-      tea: { x: 861, y: 344 },
-      juice: { x: 980, y: 369 },
-      pancake: { x: 1090, y: 404 }
+      coffee: { x: 1290, y: 320 },
+      pancake: { x: 1220, y: 480 },
+      tea: { x: 1490, y: 460 },
+      juice: { x: 930, y: 570 }
     };
 
     this.counterPosition = {
@@ -82,8 +83,9 @@ class CafeManager {
     };
 
     this.trashPosition = {
-      xOffset: 275,
-      yOffset: 509
+      // center measured at (1692, 690); zone is 100x100
+      xOffset: 1642,
+      yOffset: 640
     };
 
     // ---------------- Customers / Tables ----------------
@@ -97,17 +99,26 @@ class CafeManager {
     this.custSpawnTimer = 0;
     this.nextSpawnDelay = this.randomSpawnDelay();
 
-    // Tables
+    // Tables (aligned to the 5 bottom-left cafe tables)
+    // Each table zone is a rectangle centered on the measured table center.
     this.tablePositions = [
-      { id: 1, x: 520, y: 260, w: 90, h: 60 },
-      { id: 2, x: 380, y: 320, w: 90, h: 60 },
-      { id: 3, x: 620, y: 360, w: 90, h: 60 },
-      { id: 4, x: 460, y: 430, w: 90, h: 60 },
-      { id: 5, x: 680, y: 470, w: 90, h: 60 }
+      // back row (from left to right) - centers:
+      // Table 1: (620, 620)
+      // Table 2: (711, 780)
+      // Table 3: (1017, 740)
+      { id: 1, x: 560, y: 580, w: 120, h: 80 },  // center (620, 620)
+      { id: 2, x: 651, y: 740, w: 120, h: 80 },  // center (711, 780)
+      { id: 3, x: 957, y: 700, w: 120, h: 80 },  // center (1017, 740)
+      // front row (from left to right) - centers:
+      // Table 4: (1267, 855)
+      // Table 5: (1625, 930)
+      { id: 4, x: 1207, y: 815, w: 120, h: 80 }, // center (1267, 855)
+      { id: 5, x: 1565, y: 890, w: 120, h: 80 }  // center (1625, 930)
     ];
 
-    // Entrance / waiting spot
-    this.entrancePosition = { x: 1040, y: 520, w: 120, h: 90 };
+    // Entrance / waiting spot (center measured at approximately 1927, 935)
+    // Use a 140x100 rectangle around that point.
+    this.entrancePosition = { x: 1857, y: 885, w: 140, h: 100 };
 
     // Optional: patience (seconds) before leaving
     this.patienceMin = 35;
@@ -373,11 +384,35 @@ class CafeManager {
     const c = this.game.ctx.canvas;
     const stationY = Math.round(c.height - 260);
 
+    const stationBoxW = 180;
+    const stationBoxH = 64;
+
     this.zones = {
-      coffee: { x: this.stationPositions.coffee.x, y: this.stationPositions.coffee.y, w: 120, h: 80 },
-      tea: { x: this.stationPositions.tea.x, y: this.stationPositions.tea.y, w: 120, h: 80 },
-      juice: { x: this.stationPositions.juice.x, y: this.stationPositions.juice.y, w: 120, h: 80 },
-      pancake: { x: this.stationPositions.pancake.x, y: this.stationPositions.pancake.y, w: 120, h: 80 },
+      // Station zones are centered on the white info boxes above each appliance.
+      coffee: {
+        x: this.stationPositions.coffee.x - stationBoxW / 2,
+        y: this.stationPositions.coffee.y - stationBoxH / 2,
+        w: stationBoxW,
+        h: stationBoxH
+      },
+      tea: {
+        x: this.stationPositions.tea.x - stationBoxW / 2,
+        y: this.stationPositions.tea.y - stationBoxH / 2,
+        w: stationBoxW,
+        h: stationBoxH
+      },
+      juice: {
+        x: this.stationPositions.juice.x - stationBoxW / 2,
+        y: this.stationPositions.juice.y - stationBoxH / 2,
+        w: stationBoxW,
+        h: stationBoxH
+      },
+      pancake: {
+        x: this.stationPositions.pancake.x - stationBoxW / 2,
+        y: this.stationPositions.pancake.y - stationBoxH / 2,
+        w: stationBoxW,
+        h: stationBoxH
+      },
 
       trash: {
         x: this.trashPosition.xOffset,
@@ -801,37 +836,127 @@ class CafeManager {
 
     for (const key of blocks) {
       const z = this.zones[key];
+      const s = this.stations[key];
 
-      ctx.fillStyle = "rgba(255,255,255,0.2)";
-      ctx.fillRect(z.x, z.y, z.w, z.h);
-      ctx.strokeStyle = "rgba(255,255,255,0.8)";
-      ctx.strokeRect(z.x, z.y, z.w, z.h);
+      // Rounded white info box; the interaction zone is exactly this box.
+      const boxW = z.w;
+      const boxH = z.h;
+      const boxX = z.x;
+      const boxY = z.y;
+      const radius = 10;
+
+      ctx.save();
+
+      ctx.beginPath();
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(boxX, boxY, boxW, boxH, radius);
+      } else {
+        // Fallback rounded rect
+        ctx.moveTo(boxX + radius, boxY);
+        ctx.lineTo(boxX + boxW - radius, boxY);
+        ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + radius);
+        ctx.lineTo(boxX + boxW, boxY + boxH - radius);
+        ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - radius, boxY + boxH);
+        ctx.lineTo(boxX + radius, boxY + boxH);
+        ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - radius);
+        ctx.lineTo(boxX, boxY + radius);
+        ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+      }
 
       ctx.fillStyle = "white";
-      ctx.fillText(key.toUpperCase(), z.x + 10, z.y + 20);
+      ctx.fill();
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 3;
+      ctx.stroke();
 
-      const s = this.stations[key];
-      const text =
+      // Bold, pixelated station name + timer inside the box
+      ctx.font = "14px 'Press Start 2P'";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      const centerX = boxX + boxW / 2;
+      const nameY = boxY + boxH * 0.38;
+      const timerY = boxY + boxH * 0.75;
+
+      const statusText =
         s.outputReady ? "READY" :
           s.remaining > 0 ? s.remaining.toFixed(1) + "s" :
             "IDLE";
-      ctx.fillText(text, z.x + 10, z.y + 50);
+
+      // Color logic for station text:
+      // - READY: green
+      // - cooking (remaining > 0): yellow
+      // - IDLE: red
+      if (s.outputReady) {
+        ctx.fillStyle = "#00ff66"; // green
+      } else if (s.remaining > 0) {
+        ctx.fillStyle = "yellow";
+      } else {
+        ctx.fillStyle = "#ff4444"; // red
+      }
+
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 2;
+
+      ctx.strokeText(key.toUpperCase(), centerX, nameY);
+      ctx.fillText(key.toUpperCase(), centerX, nameY);
+
+      ctx.strokeText(statusText, centerX, timerY);
+      ctx.fillText(statusText, centerX, timerY);
+
+      ctx.restore();
+
+      // The actual interaction zone for the station is this white box.
+      // Later, station sprites can be drawn anchored just below this box if desired.
     }
 
     for (const t of this.tablePositions) {
-      ctx.fillStyle = "rgba(255,200,80,0.18)";
-      ctx.fillRect(t.x, t.y, t.w, t.h);
-      ctx.strokeStyle = "rgba(255,255,255,0.7)";
-      ctx.strokeRect(t.x, t.y, t.w, t.h);
-      ctx.fillStyle = "white";
-      ctx.fillText(`TABLE ${t.id}`, t.x + 8, t.y + 18);
+      // Use bold, pixelated labels instead of solid table rectangles
+      // Font loaded from index.html: "Press Start 2P"
+      ctx.font = "16px 'Press Start 2P'";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+
+      const centerX = t.x + t.w / 2;
+      let lineY = t.y;
 
       const seated = this.customers.find(c => c.state === "seated" && c.tableId === t.id);
+
+      // Color logic:
+      // - idle (no seated customer): yellow
+      // - seated customer waiting: green
       if (seated) {
-        ctx.fillText(`#${seated.id}: ${seated.orderItem.toUpperCase()}`, t.x + 8, t.y + 40);
-        ctx.fillText(`pat: ${Math.max(0, seated.patience).toFixed(0)}s`, t.x + 8, t.y + 58);
+        ctx.fillStyle = "#00ff66"; // bright green for active order
+      } else {
+        ctx.fillStyle = "yellow";  // idle table
+      }
+
+      // Use a black stroke around the pixel text for better readability
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 3;
+
+      const drawLabeledLine = (text, x, y) => {
+        ctx.strokeText(text, x, y);
+        ctx.fillText(text, x, y);
+      };
+
+      // Table label
+      drawLabeledLine(`TABLE ${t.id}`, centerX, lineY);
+      lineY += 22;
+
+      if (seated) {
+        // Show order and a simple per-table timer (patience)
+        drawLabeledLine(`#${seated.id}: ${seated.orderItem.toUpperCase()}`, centerX, lineY);
+        lineY += 22;
+        drawLabeledLine(`PAT: ${Math.max(0, seated.patience).toFixed(0)}s`, centerX, lineY);
       }
     }
+
+    // Reset font alignment and styles for the rest of the HUD
+    ctx.font = "14px monospace";
+    ctx.textAlign = "start";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "white";
 
     // Entrance
     const ez = this.zones.entrance;
@@ -852,7 +977,7 @@ class CafeManager {
       ctx.fillText(`NEXT: ${nextWaiting.orderItem.toUpperCase()}`, ez.x + 10, ez.y + 68);
     }
 
-    // Trash
+    // Trash (keep a subtle box so it's visible as an area)
     const tz = this.zones.trash;
     ctx.fillStyle = "rgba(80,80,80,0.35)";
     ctx.fillRect(tz.x, tz.y, tz.w, tz.h);
@@ -923,7 +1048,9 @@ class CafeManager {
       ctx.restore();
     }
 
-        if (this.tutorialActive) {
+    // Keep the entrance highlight in tutorial, but remove yellow boxes
+    // around kitchen appliances and tables for a cleaner look.
+    if (this.tutorialActive) {
       ctx.save();
       ctx.strokeStyle = "yellow";
       ctx.lineWidth = 4;
@@ -931,12 +1058,6 @@ class CafeManager {
       if (this.tutorialStep <= 1) {
         const z = this.zones.entrance;
         ctx.strokeRect(z.x, z.y, z.w, z.h);
-      } else if (this.tutorialStep >= 2 && this.tutorialStep <= 5) {
-        const z = this.zones.coffee;
-        ctx.strokeRect(z.x, z.y, z.w, z.h);
-      } else if (this.tutorialStep === 6) {
-        const t = this.tablePositions.find(tt => tt.id === 1);
-        if (t) ctx.strokeRect(t.x, t.y, t.w, t.h);
       }
 
       ctx.restore();
