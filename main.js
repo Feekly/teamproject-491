@@ -94,7 +94,10 @@ ASSET_MANAGER.downloadAll(() => {
     gameEngine.cat = cat;
 
     const difficulty = gameEngine.selectedDifficulty || "Easy";
-    const cafe = new CafeManager(gameEngine, difficulty);
+    const cafeBgImage = ASSET_MANAGER.getAsset("./cafe/workspace_cf.png");
+    const designWidth = cafeBgImage.naturalWidth || 1920;
+    const designHeight = cafeBgImage.naturalHeight || 1080;
+    const cafe = new CafeManager(gameEngine, difficulty, designWidth, designHeight);
     gameEngine.cafe = cafe;
     gameEngine.addEntity(cafe);
 
@@ -103,7 +106,7 @@ ASSET_MANAGER.downloadAll(() => {
 
     const levelMap = new Background(
       gameEngine,
-      ASSET_MANAGER.getAsset("./cafe/workspace_cf.png")
+      cafeBgImage
     );
     gameEngine.addEntity(levelMap);
     

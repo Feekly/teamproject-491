@@ -2,10 +2,15 @@
 
 class CafeManager {
   // --------------------Constructor / Setup----------------------------
-  constructor(game, difficulty = "Easy") {
+  constructor(game, difficulty = "Easy", designWidth = 1920, designHeight = 1080) {
 
     this.game = game;
     this.removeFromWorld = false;
+
+    // Design resolution: all position data is in this coordinate system.
+    // Zones are scaled to canvas size in refreshZones() for resolution independence.
+    this.designWidth = designWidth;
+    this.designHeight = designHeight;
 
     // ---------------- Difficulty ----------------
     this.difficulty = difficulty;
@@ -69,23 +74,23 @@ class CafeManager {
     this.orderId = 1;
 
     // ---------------- World Positions ----------------
-    // Station centers (used to position both interaction zones and info boxes)
+    // Station centers in design space (1920×1080); converted from screen ~2500×1336
     this.stationPositions = {
-      coffee: { x: 1290, y: 320 },
-      pancake: { x: 1220, y: 480 },
-      tea: { x: 1490, y: 460 },
-      juice: { x: 930, y: 570 }
+      coffee: { x: 995, y: 263 },
+      tea: { x: 1169, y: 348 },
+      pancake: { x: 927, y: 388 },
+      juice: { x: 738, y: 437 }
     };
 
     this.counterPosition = {
-      xOffset: 1141,
+      xOffset: 941,
       yOffset: 436
     };
 
     this.trashPosition = {
-      // center measured at (1692, 690); zone is 100x100
-      xOffset: 1642,
-      yOffset: 640
+      // design center (1219, 606); zone 100×100
+      xOffset: 1169,
+      yOffset: 556
     };
 
     // ---------------- Customers / Tables ----------------
@@ -99,26 +104,17 @@ class CafeManager {
     this.custSpawnTimer = 0;
     this.nextSpawnDelay = this.randomSpawnDelay();
 
-    // Tables (aligned to the 5 bottom-left cafe tables)
-    // Each table zone is a rectangle centered on the measured table center.
+    // Tables in design space (1920×1080); 120×80 zones
     this.tablePositions = [
-      // back row (from left to right) - centers:
-      // Table 1: (620, 620)
-      // Table 2: (711, 780)
-      // Table 3: (1017, 740)
-      { id: 1, x: 560, y: 580, w: 120, h: 80 },  // center (620, 620)
-      { id: 2, x: 651, y: 740, w: 120, h: 80 },  // center (711, 780)
-      { id: 3, x: 957, y: 700, w: 120, h: 80 },  // center (1017, 740)
-      // front row (from left to right) - centers:
-      // Table 4: (1267, 855)
-      // Table 5: (1625, 930)
-      { id: 4, x: 1207, y: 815, w: 120, h: 80 }, // center (1267, 855)
-      { id: 5, x: 1565, y: 890, w: 120, h: 80 }  // center (1625, 930)
+      { id: 1, x: 420, y: 461, w: 120, h: 80 },
+      { id: 2, x: 489, y: 591, w: 120, h: 80 },
+      { id: 3, x: 724, y: 550, w: 120, h: 80 },
+      { id: 4, x: 917, y: 663, w: 120, h: 80 },
+      { id: 5, x: 1194, y: 724, w: 120, h: 80 }
     ];
 
-    // Entrance / waiting spot (center measured at approximately 1927, 935)
-    // Use a 140x100 rectangle around that point.
-    this.entrancePosition = { x: 1857, y: 885, w: 140, h: 100 };
+    // Entrance in design space; center (1446, 736); 140×100 zone
+    this.entrancePosition = { x: 1376, y: 686, w: 140, h: 100 };
 
     // Optional: patience (seconds) before leaving
     this.patienceMin = 35;
@@ -382,58 +378,64 @@ class CafeManager {
 
   refreshZones() {
     const c = this.game.ctx.canvas;
-    const stationY = Math.round(c.height - 260);
+    const scaleX = c.width / this.designWidth;
+    const scaleY = c.height / this.designHeight;
 
     const stationBoxW = 180;
     const stationBoxH = 64;
 
+    const sx = (x) => x * scaleX;
+    const sy = (y) => y * scaleY;
+    const sw = (w) => w * scaleX;
+    const sh = (h) => h * scaleY;
+
     this.zones = {
-      // Station zones are centered on the white info boxes above each appliance.
+      // Station zones (design-space box, then scaled to screen)
       coffee: {
-        x: this.stationPositions.coffee.x - stationBoxW / 2,
-        y: this.stationPositions.coffee.y - stationBoxH / 2,
-        w: stationBoxW,
-        h: stationBoxH
+        x: sx(this.stationPositions.coffee.x - stationBoxW / 2),
+        y: sy(this.stationPositions.coffee.y - stationBoxH / 2),
+        w: sw(stationBoxW),
+        h: sh(stationBoxH)
       },
       tea: {
-        x: this.stationPositions.tea.x - stationBoxW / 2,
-        y: this.stationPositions.tea.y - stationBoxH / 2,
-        w: stationBoxW,
-        h: stationBoxH
+        x: sx(this.stationPositions.tea.x - stationBoxW / 2),
+        y: sy(this.stationPositions.tea.y - stationBoxH / 2),
+        w: sw(stationBoxW),
+        h: sh(stationBoxH)
       },
       juice: {
-        x: this.stationPositions.juice.x - stationBoxW / 2,
-        y: this.stationPositions.juice.y - stationBoxH / 2,
-        w: stationBoxW,
-        h: stationBoxH
+        x: sx(this.stationPositions.juice.x - stationBoxW / 2),
+        y: sy(this.stationPositions.juice.y - stationBoxH / 2),
+        w: sw(stationBoxW),
+        h: sh(stationBoxH)
       },
       pancake: {
-        x: this.stationPositions.pancake.x - stationBoxW / 2,
-        y: this.stationPositions.pancake.y - stationBoxH / 2,
-        w: stationBoxW,
-        h: stationBoxH
+        x: sx(this.stationPositions.pancake.x - stationBoxW / 2),
+        y: sy(this.stationPositions.pancake.y - stationBoxH / 2),
+        w: sw(stationBoxW),
+        h: sh(stationBoxH)
       },
 
       trash: {
-        x: this.trashPosition.xOffset,
-        y: this.trashPosition.yOffset,
-        w: 100,
-        h: 100
+        x: sx(this.trashPosition.xOffset),
+        y: sy(this.trashPosition.yOffset),
+        w: sw(100),
+        h: sh(100)
       },
 
       entrance: {
-        x: this.entrancePosition.x,
-        y: this.entrancePosition.y,
-        w: this.entrancePosition.w,
-        h: this.entrancePosition.h
+        x: sx(this.entrancePosition.x),
+        y: sy(this.entrancePosition.y),
+        w: sw(this.entrancePosition.w),
+        h: sh(this.entrancePosition.h)
       },
 
       tables: this.tablePositions.map(t => ({
         id: t.id,
-        x: t.x,
-        y: t.y,
-        w: t.w,
-        h: t.h
+        x: sx(t.x),
+        y: sy(t.y),
+        w: sw(t.w),
+        h: sh(t.h)
       }))
     };
   }
@@ -910,28 +912,23 @@ class CafeManager {
       // Later, station sprites can be drawn anchored just below this box if desired.
     }
 
-    for (const t of this.tablePositions) {
-      // Use bold, pixelated labels instead of solid table rectangles
-      // Font loaded from index.html: "Press Start 2P"
+    for (const tz of this.zones.tables) {
+      // Draw at screen-space zone (tz); table id is tz.id
       ctx.font = "16px 'Press Start 2P'";
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
 
-      const centerX = t.x + t.w / 2;
-      let lineY = t.y;
+      const centerX = tz.x + tz.w / 2;
+      let lineY = tz.y;
 
-      const seated = this.customers.find(c => c.state === "seated" && c.tableId === t.id);
+      const seated = this.customers.find(c => c.state === "seated" && c.tableId === tz.id);
 
-      // Color logic:
-      // - idle (no seated customer): yellow
-      // - seated customer waiting: green
       if (seated) {
-        ctx.fillStyle = "#00ff66"; // bright green for active order
+        ctx.fillStyle = "#00ff66";
       } else {
-        ctx.fillStyle = "yellow";  // idle table
+        ctx.fillStyle = "yellow";
       }
 
-      // Use a black stroke around the pixel text for better readability
       ctx.strokeStyle = "black";
       ctx.lineWidth = 3;
 
@@ -940,12 +937,10 @@ class CafeManager {
         ctx.fillText(text, x, y);
       };
 
-      // Table label
-      drawLabeledLine(`TABLE ${t.id}`, centerX, lineY);
+      drawLabeledLine(`TABLE ${tz.id}`, centerX, lineY);
       lineY += 22;
 
       if (seated) {
-        // Show order and a simple per-table timer (patience)
         drawLabeledLine(`#${seated.id}: ${seated.orderItem.toUpperCase()}`, centerX, lineY);
         lineY += 22;
         drawLabeledLine(`PAT: ${Math.max(0, seated.patience).toFixed(0)}s`, centerX, lineY);
